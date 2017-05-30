@@ -1,0 +1,87 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: gitlab-pv
+  labels:
+    type: local
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: /var/opt/gitlab
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gitlab-pv-claim
+  labels:
+    app: gitlab
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: gitlab
+  labels:
+    app: gitlab
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: gitlab
+        tier: frontend
+    spec:
+      containers:
+      - image: gitlab/gitlab-ce
+        name: gitlab
+        env:
+        - name: GITLAB_OMNIBUS_CONFIG
+          value: "external_url 'http://gitlab/'; gitlab_rails['lfs_enabled'] = true;" 
+        ports:
+        - containerPort: 80
+          name: gitlabport1
+        - containerPort: 443
+          name: gitlabport2
+        volumeMounts:
+        - name: gitlab-persistent-storage
+          mountPath: /var/opt/gitlab
+        - name: gitlab-conf
+          mountPath: /etc/gitlab
+        - name: gitlab-log
+          mountPath: /var/log/gitlab
+      volumes:
+      - name: gitlab-persistent-storage
+        persistentVolumeClaim:
+          claimName: gitlab-pv-claim
+      - name: gitlab-conf
+        hostPath:
+          path: /etc/gitlab/
+      - name: gitlab-log
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitlab
+  labels:
+    app: gitlab
+spec:
+  ports:
+  - port: 80
+    targetPort: 80
+    name: gitlabport1
+  - port: 443
+    targetPort: 443
+    name: gitlabport2
+  selector:
+    app: gitlab
+    tier: frontend
+  type: NodePort

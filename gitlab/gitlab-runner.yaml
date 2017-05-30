@@ -1,0 +1,53 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: gitlab-runner-docker
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: docker-runner
+        app: gitlab-runner
+    spec:
+      containers:
+      - name: gitlab-runner-docker
+        image: gitlab/gitlab-runner
+        imagePullPolicy: Always
+        resources:
+          limits:
+            memory: 500Mi
+            cpu: 600m
+          requests:
+            memory: 500Mi
+            cpu: 600m
+        volumeMounts:
+        - name: config
+          mountPath: /etc/gitlab-runner
+        - name: var-run-docker-sock
+          mountPath: /var/run/docker.sock
+      volumes:
+      - name: var-run-docker-sock
+        hostPath:
+          path: /var/run/docker.sock
+      - name: config
+        hostPath:
+          path: /root/gitlab-runner/
+
+#        configMap:
+#          name: gitlab-runner-docker
+#apiVersion: v1
+#kind: ConfigMap
+#metadata:
+#  name: gitlab-runner-docker
+#data:
+#  config.toml: |
+#   concurrent = 4
+#   check_interval = 1
+#   [[runners]]
+#     name = "runner1"
+#     url = "http://gitlab/ci"
+#     token = "e8e063a0c11edd0ce408fd6a4cc106"
+#     executor = "shell"
+#   [runners.cache]
+#---
